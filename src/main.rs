@@ -14,21 +14,31 @@ struct TodoList<'a> {
 
 impl TodoList<'_> {
     fn new(file: &str) -> TodoList {
-        TodoList { items: Vec::new(), file }
+        TodoList {
+            items: Vec::new(),
+            file
+        }
     }
 
     fn load(&mut self) {
-        let database = fs::read_to_string(self.file);
-        for line in database {
-            let parts: Vec<&str> = line.split('-').collect();
-            if parts.len() == 3 {
-                let id = parts[0].parse().unwrap();
-                let title = parts[1].to_string();
-                let status = parts[2].parse().unwrap_or(false);
-                let item = TodoItem {id, title, completed: status};
-                self.items.push(item);
+        match fs::read_to_string(self.file) {
+            Ok(database) => {
+                for line in database.lines() {
+                    let parts: Vec<&str> = line.split('-').collect();
+                    if parts.len() == 3 {
+                        let id = parts[0].parse().unwrap();
+                        let title = parts[1].to_string();
+                        let status = parts[2].parse().unwrap();
+                        let item = TodoItem {id, title, completed: status};
+                        self.items.push(item);
+                    }
+                }
+            },
+            Err(e) => {
+                eprintln!("Failed to read from the file: {}", e);
             }
         }
+
     }
 
     fn save(&self){
@@ -37,8 +47,8 @@ impl TodoList<'_> {
         } else {
             let mut fd = fs::File::create(self.file).expect("Error opening file!");
             for item in &self.items {
-                println!("item: {}", item.id);
-                writeln!(fd, "{:?}-{:?}-{:?}", item.id, item.title, item.completed).expect("Error saving data to file!");
+                // println!("item: {}", item.title);
+                writeln!(fd, "{:?}-{}-{:?}", item.id, item.title, item.completed).expect("Error saving data to file!");
             }
         }
     }
