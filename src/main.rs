@@ -1,7 +1,8 @@
 use std::{fs, io, io::Write};
 use std::io::Read;
 use std::process::Command;
-
+extern crate chrono;
+use chrono::prelude::*;
 
 fn console_clear() {
     let _ = Command::new("clear").status();
@@ -21,7 +22,9 @@ fn console_pause() {
 struct TodoItem {
     id: u16,
     title: String,
-    completed: bool
+    completed: bool,
+    created_at: DateTime<Utc>,
+    last_updated: DateTime<Utc>,
 }
 
 struct TodoList<'a> {
@@ -41,12 +44,14 @@ impl TodoList<'_> {
         match fs::read_to_string(self.file) {
             Ok(database) => {
                 for line in database.lines() {
-                    let parts: Vec<&str> = line.split('-').collect();
-                    if parts.len() == 3 {
+                    let parts: Vec<&str> = line.split('|').collect();
+                    if parts.len() == 5 {
                         let id = parts[0].parse().unwrap();
                         let title = parts[1].to_string();
                         let status = parts[2].parse().unwrap();
-                        let item = TodoItem {id, title, completed: status};
+                        let created_at = DateTime::parse_from_rfc3339(parts[3]).unwrap().with_timezone(&Utc);
+                        let last_updated = DateTime::parse_from_rfc3339(parts[4]).unwrap().with_timezone(&Utc);
+                        let item = TodoItem {id, title, completed: status, created_at, last_updated};
                         self.items.push(item);
                     }
                 }
@@ -65,17 +70,20 @@ impl TodoList<'_> {
             let mut fd = fs::File::create(self.file).expect("Error opening file!");
             for item in &self.items {
                 // println!("item: {}", item.title);
-                writeln!(fd, "{:?}-{}-{:?}", item.id, item.title, item.completed).expect("Error saving data to file!");
+                writeln!(fd, "{:?}|{}|{:?}|{}|{}", item.id, item.title, item.completed, item.created_at.to_rfc3339(), item.last_updated.to_rfc3339()).expect("Error saving data to file!");
             }
         }
     }
 
     fn add_item(&mut self, title: String) {
         let id = self.items.len() as u16 + 1;
+        let time = Utc::now();
         let new = TodoItem {
             id,
             title: title.clone(),
-            completed: false
+            completed: false,
+            created_at: time,
+            last_updated: time,
         };
         self.items.push(new);
         println!("Added {}", title);
@@ -88,7 +96,7 @@ impl TodoList<'_> {
             println!("The todo list:");
             for item in &self.items {
                 let status = if item.completed {"[X]"} else {"[ ]"};
-                println!("{} {} - {}", status, item.id, item.title);
+                println!("{} {} - {} - created: {} - last updated: {}", status, item.id, item.title, item.created_at.to_rfc3339(), item.last_updated.to_rfc3339());
             }
         }
     }
@@ -96,6 +104,7 @@ impl TodoList<'_> {
     fn complete_item(&mut self, id: u16) {
         if let Some(item) = self.items.iter_mut().find(|i| i.id == id) {
             item.completed = true;
+            item.last_updated = Utc::now();
             println!("Changed status for: {}", item.title);
         } else {
             println!("Item with the id: {} was not found!", id);
