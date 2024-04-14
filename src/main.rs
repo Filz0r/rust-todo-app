@@ -1,4 +1,21 @@
 use std::{fs, io, io::Write};
+use std::io::Read;
+use std::process::Command;
+
+
+fn console_clear() {
+    let _ = Command::new("clear").status();
+}
+
+fn console_pause() {
+    let mut stdin = io::stdin();
+    let mut stdout = io::stdout();
+
+    write!(stdout, "Press Enter to continue...").unwrap();
+    stdout.flush().unwrap();
+
+    let _ = stdin.read(&mut [0u8]).unwrap();
+}
 
 #[derive(Debug)]
 struct TodoItem {
@@ -125,6 +142,7 @@ fn main() {
 
     list.load();
     loop {
+        console_clear();
         println!("1. Add new item");
         println!("2. List items");
         println!("3. Change item status");
@@ -134,22 +152,30 @@ fn main() {
 
         match choice {
             1 => {
+                console_clear();
                 println!("Enter the title of the new item: ");
                 let title = get_string_input();
                 list.add_item(title);
+                console_pause();
             }
 
             2 => {
+                console_clear();
                 list.list_items();
+                console_pause();
+                console_clear();
             }
 
             3 => {
+                console_clear();
                 println!("Enter the id, of the item to change: ");
                 let id = get_short_input();
                 list.complete_item(id);
+                console_pause();
             }
 
             4 => {
+                console_clear();
                 println!("Exiting program");
                 list.save();
                 break;
